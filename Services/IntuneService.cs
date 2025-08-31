@@ -123,7 +123,7 @@ namespace TeamsBot.Services
             {
                 foreach (var member in members.Value)
                 {
-                    if (member.Id == device.AzureADDeviceId.ToString())
+                    if (member.Id == device.UserId.ToString())
                     {
                         alreadyMember = true;
                         break;
@@ -133,14 +133,7 @@ namespace TeamsBot.Services
 
             if (!alreadyMember)
             {
-                    var user = await graphClient.Users["670572b3-5e56-4955-a84c-90b504c70062"]
-    .GetAsync(requestConfig => {
-        requestConfig.QueryParameters.Select = new[] { "id", "userPrincipalName" };
-    });
-                    var refi = new ReferenceCreate
-                    {
-                        OdataId = $"https://graph.microsoft.com/v1.0/directoryObjects/{device.UserId}"
-                    };
+                  
                     await graphClient.Groups[existingGroup.Id].Members.Ref
                     .PostAsync(new ReferenceCreate
                     {
