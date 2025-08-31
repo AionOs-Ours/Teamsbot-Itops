@@ -1,0 +1,65 @@
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
+using AdaptiveCards;
+using TeamsBot.Services.Interfaces;
+
+namespace TeamsBot.Services
+{
+    public class CardService: ICardService
+    {
+        public CardService()
+        {
+                    
+        }
+        public async Task<AdaptiveCard> GetCard(string responseMsg, string senderName, string serviceRequest) {
+            if(string.IsNullOrEmpty(responseMsg))
+            {
+                responseMsg = "Approved your request Please click on Ok when you are ready for the software to be insatlled.";
+            }
+            var card = new AdaptiveCard(new AdaptiveSchemaVersion(1, 2))
+            {
+                Body = new List<AdaptiveElement>
+                        {
+                            new AdaptiveTextBlock("🎯 User Request Status")
+                            {
+                                Size = AdaptiveTextSize.ExtraLarge,
+                                Weight = AdaptiveTextWeight.Bolder,
+                                Color = AdaptiveTextColor.Accent,
+                                HorizontalAlignment = AdaptiveHorizontalAlignment.Center,
+                                Spacing = AdaptiveSpacing.Large
+                            },
+                            new AdaptiveImage("https://adaptivecards.io/content/cats/1.png")
+                            {
+                                Size = AdaptiveImageSize.Medium,
+                                Style = AdaptiveImageStyle.Person,
+                                HorizontalAlignment = AdaptiveHorizontalAlignment.Center,
+                                AltText = "User Avatar"
+                            },
+                            new AdaptiveTextBlock($"📝 Response Summary of {serviceRequest}")
+                            {
+                                Size = AdaptiveTextSize.Medium,
+                                Weight = AdaptiveTextWeight.Bolder,
+                                Separator = true,
+                                Spacing = AdaptiveSpacing.Medium
+                            },
+                            new AdaptiveTextBlock($"{senderName} - {responseMsg}")
+                            {
+                                Wrap = true,
+                                Spacing = AdaptiveSpacing.Small,
+                                Color = AdaptiveTextColor.Default
+                            }
+                        },
+                Actions = new List<AdaptiveAction>
+                        {
+                            new AdaptiveSubmitAction
+                            {
+                                Title = "✅ OK",
+                                Style = "positive",
+                                Data = new { action = "Ok", requestId=serviceRequest }
+                            }
+                        }
+            };
+            return card;
+        }
+    }
+}
