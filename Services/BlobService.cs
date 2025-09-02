@@ -2,19 +2,29 @@
 using System.Threading.Tasks;
 using Azure.Storage;
 using Azure.Storage.Blobs;
+using Microsoft.Extensions.Configuration;
+using TeamsBot.Models;
 using TeamsBot.Services.Interfaces;
 
 namespace TeamsBot.Services
 {
     public class BlobService: IBlobService
     {
+        private readonly IConfiguration _config;
         private readonly string _url;
+        private readonly string accountKey;
+        public BlobService(IConfiguration config)
+        {
+                   _config = config;
+            accountKey = config["Config:AppConfig:AccountKey"];
+        }
+       
         public async Task<string> GetFileContent(string blobName= "pythonSuite.ps1")
         {
             try
             {
                 string accountName = "installerscripts";
-                string accountKey = "oJAl7PbysDRjuVNl6VSh2yQ+RB93tGKBsIQIf/7k5hT/2PZVFhL+P79ecFmjlba23elq76Gth62J+AStHbtIIA==";
+                
                 string containerName = "teams-bot";
 
                 var credential = new StorageSharedKeyCredential(accountName, accountKey);
@@ -25,8 +35,6 @@ namespace TeamsBot.Services
                 var download = await blobClient.DownloadContentAsync();
                 string content = download.Value.Content.ToString();
                 return content;
-                Console.WriteLine("Blob content:");
-                Console.WriteLine(content);
             }
             catch (System.Exception)
             {
