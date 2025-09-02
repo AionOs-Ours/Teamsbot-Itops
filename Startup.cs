@@ -40,6 +40,7 @@ namespace TeamsBot
             // Create the Bot Adapter with error handling enabled.
             services.AddSingleton<IBotFrameworkHttpAdapter, AdapterWithErrorHandler>();
             services.AddSingleton<ICardService, CardService>();
+            services.AddSingleton<IBlobService, BlobService>();
             services.AddSingleton<IBotService, BotService>();
             services.AddSingleton<IIntuneService, IntuneService>();
             services.AddSingleton<IServiceNowService, ServiceNowService>();

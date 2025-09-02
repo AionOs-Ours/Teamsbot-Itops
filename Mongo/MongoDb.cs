@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Bot.Connector;
 using Microsoft.Bot.Schema.Teams;
  using Microsoft.EntityFrameworkCore;
-using Microsoft.Graph.Models;
+using Microsoft.Graph.Beta.Models;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoDB.Driver;
@@ -55,7 +55,10 @@ namespace TeamsBot.Mongo
         {
             return database.GetCollection<ServiceRequest>("serviceRequests");
         }
-
+        public IMongoCollection<SoftwareSuite> GetSoftwareSuiteCollection()
+        {
+            return database.GetCollection<SoftwareSuite>("softwareSuites");
+        }
         public async Task CreateConversationAsync(Conversations conversation)
         {
             var collection = GetConversationsCollection();
@@ -75,6 +78,11 @@ namespace TeamsBot.Mongo
         {
             var collection = GetServiceRequestCollection();
             return await collection.FindAsync(Builders<ServiceRequest>.Filter.Eq("TicketNumber", TicketNumber)).Result.FirstOrDefaultAsync();
+        }
+        public async Task<SoftwareSuite> FindSoftwareSuiteAsync(string Id)
+        {
+            var collection = GetSoftwareSuiteCollection();
+            return await collection.FindAsync(Builders<SoftwareSuite>.Filter.Eq("_id", ObjectId.Parse(Id))).Result.FirstOrDefaultAsync();
         }
     }
 }
