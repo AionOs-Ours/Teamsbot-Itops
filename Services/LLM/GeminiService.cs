@@ -33,12 +33,6 @@ namespace TeamsBot.Services.LLM
         }
         public async Task<GeminiResponse> GetGeminiResponseAsync(string userPrompt,bool isList=true)
         {
-            if (isList)
-            {
-                userPrompt = $"Determine if the user is asking for a list of software names. Respond only YES or NO.\n\nUser: {userPrompt}";
-
-            }
-
             var request = GetGeminiRequest(userPrompt);
             var response = await _httpClient.SendAsync(request);
             response.EnsureSuccessStatusCode();

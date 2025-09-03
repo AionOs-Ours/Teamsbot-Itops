@@ -221,7 +221,7 @@ namespace TeamsBot.Services
                                 Separator = true,
                                 Spacing = AdaptiveSpacing.Medium
                             },
-                            new AdaptiveTextBlock($"{senderName} Requested: {userText}")
+                            new AdaptiveTextBlock($"**{senderName}** Requested: {userText}")
                             {
                                 Wrap = true,
                                 Spacing = AdaptiveSpacing.Small,

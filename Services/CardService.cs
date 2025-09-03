@@ -44,7 +44,7 @@ namespace TeamsBot.Services
                                 Separator = true,
                                 Spacing = AdaptiveSpacing.Medium
                             },
-                            new AdaptiveTextBlock($"{senderName} - {responseMsg}")
+                            new AdaptiveTextBlock($"**{senderName}** - {responseMsg}")
                             {
                                 Wrap = true,
                                 Spacing = AdaptiveSpacing.Small,
