@@ -15,8 +15,8 @@ namespace TeamsBot.Services
         private readonly string accountKey;
         public BlobService(IConfiguration config)
         {
-                   _config = config;
-            accountKey = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(config["Config:AppConfig:AccountKey"]));
+            _config = config;
+            accountKey = config["Config:AppConfig:AccountKey"];
         }
        
         public async Task<string> GetFileContent(string blobName= "pythonSuite.ps1")
