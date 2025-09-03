@@ -132,7 +132,7 @@ namespace TeamsBot.Services
                     {
                         var suiteCollection = _mongoDb.FindSoftwareSuiteAsync(suiteId);
                         var blob = await _blobService.GetFileContent(suiteCollection.Result.ScriptName);
-                        await _intuneService.DeployScript(turnContext.Activity.From.AadObjectId, blob);
+                        await _intuneService.DeployScript(turnContext.Activity.From.AadObjectId, blob, suiteCollection.Result.ScriptName);
                     }
                 }
             }
@@ -163,7 +163,7 @@ namespace TeamsBot.Services
 
                 if (!isInstallation)
                 {
-                    var llmReply = $"Aries: {llmRes.Candidates[0].Content.Parts[0].Text}";
+                    var llmReply = $"**Aries:** {llmRes.Candidates[0].Content.Parts[0].Text}";
                     await turnContext.SendActivityAsync(MessageFactory.Text(llmReply, llmReply), cancellationToken);
                     return;
                 }

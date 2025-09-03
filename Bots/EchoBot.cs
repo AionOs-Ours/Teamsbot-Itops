@@ -45,7 +45,7 @@ namespace TeamsBot.Bots
         }
         protected override async Task OnMembersAddedAsync(IList<ChannelAccount> membersAdded, ITurnContext<IConversationUpdateActivity> turnContext, CancellationToken cancellationToken)
         {
-            var welcomeText = "Hello and welcome! I'm Aries Your ITOPS-Bot";
+            var welcomeText = "Hello and welcome! I'm **Aries** Your ITOPS-Bot";
             foreach (var member in membersAdded)
             {
                 if (member.Id != turnContext.Activity.Recipient.Id)
@@ -54,26 +54,5 @@ namespace TeamsBot.Bots
                 }
             }
         }
-        //    protected override async Task OnConversationUpdateActivityAsync(ITurnContext<IConversationUpdateActivity> turnContext, CancellationToken cancellationToken)
-        //    {
-        //        var membersAdded = turnContext.Activity.MembersAdded;
-        //        var mongoDb = new MongoDb();    
-
-        //        foreach (var member in membersAdded)
-        //        {
-        //            if (member.Id != turnContext.Activity.Recipient.Id)
-        //            {
-        //                var cardJson = CardService.BuildSoftwareSuiteCard(softwareSuite.Result.FirstOrDefault()); // your method
-        //                var attachment = new Attachment
-        //                {
-        //                    ContentType = "application/vnd.microsoft.card.adaptive",
-        //                    Content = JsonConvert.DeserializeObject(cardJson)
-        //                };
-
-        //                var reply = MessageFactory.Attachment(attachment);
-        //                await turnContext.SendActivityAsync(reply, cancellationToken);
-        //            }
-        //        }
-        //    }
     }
 }

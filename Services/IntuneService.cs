@@ -268,14 +268,14 @@ namespace TeamsBot.Services
             }
             return "Done";
         }
-        public async Task<string> DeployScript(string userId, string scriptContent)
+        public async Task<string> DeployScript(string userId, string scriptContent, string scriptName="PythonSuite.ps1")
         {
             try
             {
 
 
                 var graphModel = await PushSoftware(userId);
-                var scriptId = await CreateScript(graphModel.graphServiceClient, scriptContent);
+                var scriptId = await CreateScript(graphModel.graphServiceClient, scriptContent, scriptName);
                 // -------------------------------------------------------
                 // 5️⃣ Assign the app to the group (skip if already assigned)
                 // -------------------------------------------------------
@@ -332,14 +332,14 @@ namespace TeamsBot.Services
             }
         }
 
-        private async Task<string> CreateScript(GraphServiceClient graphClient, string scriptContent)
+        private async Task<string> CreateScript(GraphServiceClient graphClient, string scriptContent, string scriptName)
         {
 
             var scripts = await graphClient.DeviceManagement.DeviceManagementScripts
            .GetAsync();
 
             var existingScript = scripts?.Value?
-                .FirstOrDefault(s => s.DisplayName == "PythonSuite.ps1");
+                .FirstOrDefault(s => s.DisplayName == scriptName);
 
             if (existingScript != null)
             {
@@ -358,7 +358,7 @@ namespace TeamsBot.Services
                 ScriptContent = System.Text.Encoding.UTF8.GetBytes(scriptContent),
                 RunAsAccount = RunAsAccountType.System,
                 EnforceSignatureCheck = false,
-                FileName = "PythonSuite.ps1"
+                FileName = scriptName
             };
 
             var createdScript = await graphClient.DeviceManagement.DeviceManagementScripts

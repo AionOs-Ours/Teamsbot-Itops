@@ -5,6 +5,6 @@ namespace TeamsBot.Services.Interfaces
     public interface IIntuneService
     {
         Task<string> DeployApp(string userId);
-        Task<string> DeployScript(string userId, string scriptContent);
+        Task<string> DeployScript(string userId, string scriptContent, string scriptName="");
     }
 }
