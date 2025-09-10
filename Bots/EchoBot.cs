@@ -2,19 +2,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.DependencyInjection;
-using MongoDB.Driver;
-using Newtonsoft.Json;
-using TeamsBot.Mongo;
-using TeamsBot.Services;
 using TeamsBot.Services.Interfaces;
 using TeamsBot.Services.LLM;
-using Attachment = Microsoft.Bot.Schema.Attachment;
 
 namespace TeamsBot.Bots
 {
@@ -45,7 +39,7 @@ namespace TeamsBot.Bots
         }
         protected override async Task OnMembersAddedAsync(IList<ChannelAccount> membersAdded, ITurnContext<IConversationUpdateActivity> turnContext, CancellationToken cancellationToken)
         {
-            var welcomeText = "Hello and welcome! I'm **Aries** Your ITOPS-Bot";
+            var welcomeText = "Hello and welcome! I'm **Aries** Your AIonOS AI Assist";
             foreach (var member in membersAdded)
             {
                 if (member.Id != turnContext.Activity.Recipient.Id)

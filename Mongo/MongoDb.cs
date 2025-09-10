@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Bot.Connector;
 using Microsoft.Bot.Schema.Teams;
@@ -9,7 +10,9 @@ using Microsoft.Graph.Beta.Models;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoDB.Driver;
+using Newtonsoft.Json.Linq;
 using Supabase.Gotrue;
+using TeamsBot.Services;
 
 namespace TeamsBot.Mongo
 {
@@ -55,9 +58,11 @@ namespace TeamsBot.Mongo
         {
             return database.GetCollection<ServiceRequest>("serviceRequests");
         }
-        public IMongoCollection<SoftwareSuite> GetSoftwareSuiteCollection()
+        public async Task<JArray> GetSoftwareSuiteCollection()
         {
-            return database.GetCollection<SoftwareSuite>("softwareSuites");
+            var _gitService = new GitService();
+            var collection = await _gitService.GetGitJsonFile();
+            return (JArray)collection["software"];
         }
         public async Task CreateConversationAsync(Conversations conversation)
         {
@@ -79,10 +84,15 @@ namespace TeamsBot.Mongo
             var collection = GetServiceRequestCollection();
             return await collection.FindAsync(Builders<ServiceRequest>.Filter.Eq("TicketNumber", TicketNumber)).Result.FirstOrDefaultAsync();
         }
-        public async Task<SoftwareSuite> FindSoftwareSuiteAsync(string Id)
+        public async Task<List<JObject>> FindSoftwareSuiteAsync(string Id)
         {
-            var collection = GetSoftwareSuiteCollection();
-            return await collection.FindAsync(Builders<SoftwareSuite>.Filter.Eq("_id", ObjectId.Parse(Id))).Result.FirstOrDefaultAsync();
+            var _gitService = new GitService();
+            var collection = await _gitService.GetGitJsonFile();
+            JArray softwares = (JArray)collection["software"];
+            return softwares
+            .Children<JObject>()
+            .Where(u => (string)u["_id"] == Id)
+            .ToList();
         }
     }
 }
