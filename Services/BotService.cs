@@ -29,6 +29,7 @@ namespace TeamsBot.Services
         private readonly IConfiguration _config;
         private readonly MongoDb _mongoDb;
         private readonly string botId;
+        private readonly GitService _gitService;
         public BotService(IServiceProvider provider, IConfiguration config)
         {
             _provider = provider;
@@ -37,13 +38,18 @@ namespace TeamsBot.Services
             _blobService = _provider.GetRequiredService<IBlobService>();
             _geminiService = new GeminiService();
             _mongoDb = new MongoDb();
+            _gitService = new GitService();
             _config = config;
             botId= _config["Config:AppConfig:BotId"];
         }
 
         public async Task ProcessBotMessage(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
         {
-            var userText = turnContext.Activity.Text?.Trim();
+            try
+            {
+
+
+                var userText = turnContext.Activity.Text?.Trim();
             var senderName = turnContext.Activity.From.Name;
             var graphClient = GraphHelper.GetGraphClient(_config["Config:AppConfig:BotId"], _config["Config:AppConfig:TenantId"], _config["Config:AppConfig:AppPassword"]);
             var proactiveMessageSender = new ProactiveMessageSender(graphClient);
@@ -55,6 +61,8 @@ namespace TeamsBot.Services
             var findUser = await _mongoDb.FindConversationAsync(userId);
             bool isFirst = true;
             string suiteId = string.Empty;
+            var softwareSuites = _mongoDb.GetSoftwareSuiteCollection();
+           
             if (turnContext.Activity.Value is not null && turnContext.Activity.Value.ToString().Contains("installSoftware"))
             {
                 userText= JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["name"].ToString();
@@ -131,8 +139,9 @@ namespace TeamsBot.Services
                     else
                     {
                         var suiteCollection = _mongoDb.FindSoftwareSuiteAsync(suiteId);
-                        var blob = await _blobService.GetFileContent(suiteCollection.Result.ScriptName);
-                        await _intuneService.DeployScript(turnContext.Activity.From.AadObjectId, blob, suiteCollection.Result.ScriptName);
+                        var scriptName = Convert.ToString(suiteCollection.Result.FirstOrDefault()["ScriptName"]);
+                        var blob = await _blobService.GetFileContent(scriptName);
+                        await _intuneService.DeployScript(turnContext.Activity.From.AadObjectId, blob, scriptName);
                     }
                 }
             }
@@ -143,10 +152,10 @@ namespace TeamsBot.Services
                 var isList = await _geminiService.GetIsListGeminiResponseAsync(userText);
                 if (isList && !isInstallation)
                 {
-                    var softwareSuite = _mongoDb.GetSoftwareSuiteCollection().Find(Builders<SoftwareSuite>.Filter.Empty).ToListAsync();
-                        foreach (var item in softwareSuite.Result)
+                       
+                        foreach (var item in softwareSuites.Result.Children<JObject>().ToArray())
                         {
-                            var card = cardService.BuildSoftwareSuiteCard(item); // your method
+                            var card = cardService.BuildSoftwareSuiteCard(item.ToObject<SoftwareSuite>()); // your method
                             var attachment = new Attachment
                             {
                                 ContentType = "application/vnd.microsoft.card.adaptive",
@@ -269,5 +278,12 @@ namespace TeamsBot.Services
                 }
             }
         }
+            catch (Exception ex)
+            {
+
+                throw;
+            }
+
+}
     }
 }
