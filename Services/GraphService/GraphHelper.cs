@@ -1,4 +1,4 @@
-﻿using Microsoft.Graph;
+﻿using Microsoft.Graph.Beta;
 using Microsoft.Identity.Client;
 using System.Threading.Tasks;
 using System.Collections.Generic;

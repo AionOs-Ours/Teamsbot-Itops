@@ -13,6 +13,7 @@ namespace TeamsBot.Models
         public string AppPassword { get; set; }
         public string TenantId { get; set; }
         public string ItAdminEmail { get; set; }
+        public string AccountKey { get; set; }
     }
     public class ServiceNowConfig
     {

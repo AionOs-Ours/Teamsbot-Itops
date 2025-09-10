@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using AdaptiveCards;
+using Newtonsoft.Json;
+using TeamsBot.Mongo;
 using TeamsBot.Services.Interfaces;
 
 namespace TeamsBot.Services
@@ -11,7 +13,7 @@ namespace TeamsBot.Services
         {
                     
         }
-        public async Task<AdaptiveCard> GetCard(string responseMsg, string senderName, string serviceRequest) {
+        public async Task<AdaptiveCard> GetCard(string responseMsg, string senderName, string serviceRequest,string objectId) {
             if(string.IsNullOrEmpty(responseMsg))
             {
                 responseMsg = "Approved your request Please click on Ok when you are ready for the software to be insatlled.";
@@ -42,7 +44,7 @@ namespace TeamsBot.Services
                                 Separator = true,
                                 Spacing = AdaptiveSpacing.Medium
                             },
-                            new AdaptiveTextBlock($"{senderName} - {responseMsg}")
+                            new AdaptiveTextBlock($"**{senderName}** - {responseMsg}")
                             {
                                 Wrap = true,
                                 Spacing = AdaptiveSpacing.Small,
@@ -55,11 +57,63 @@ namespace TeamsBot.Services
                             {
                                 Title = "✅ OK",
                                 Style = "positive",
-                                Data = new { action = "Ok", requestId=serviceRequest }
+                                Data = new { action = "Ok", requestId=serviceRequest ,objectId=objectId}
                             }
                         }
             };
             return card;
         }
+
+        public async Task<AdaptiveCard> BuildSoftwareSuiteCard(SoftwareSuite suite)
+        {
+            var card = new AdaptiveCard("1.4")
+            {
+                Body = new List<AdaptiveElement>
+            {
+                new AdaptiveTextBlock
+                {
+                    Text = $"🧰 {suite.SuiteName}",
+                    Size = AdaptiveTextSize.Large,
+                    Weight = AdaptiveTextWeight.Bolder,
+                    Wrap = true
+                },
+                new AdaptiveTextBlock
+                {
+                    Text = $"**Category**: {suite.Category}",
+                    Size = AdaptiveTextSize.Medium,
+                    Wrap = true
+                },
+                new AdaptiveTextBlock
+                {
+                    Text = "Included Software:",
+                    Weight = AdaptiveTextWeight.Bolder,
+                    Separator = true
+                }
+            }
+            };
+
+            foreach (var software in suite.Softwares)
+            {
+                card.Body.Add(new AdaptiveTextBlock
+                {
+                    Text = $"- **{software.Name}** v {software.Version}\n`{software.InstallScript}`",
+                    Wrap = true,
+                    Spacing = AdaptiveSpacing.Small
+                });
+            }
+
+            card.Actions.AddRange(new List<AdaptiveAction>
+                        {
+                            new AdaptiveSubmitAction
+                            {
+                                Title = "✅ Install",
+                                Style = "positive",
+                                Data = new { action = "installSoftware", requestId=suite.Id.ToString() , name =suite.SuiteName, objectId= suite.Id.ToString()}
+                            }
+                        });
+
+            return card;
+        }
     }
 }
+

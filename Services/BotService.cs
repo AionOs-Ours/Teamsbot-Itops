@@ -1,12 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AdaptiveCards;
+using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Driver;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using TeamsBot.Mongo;
@@ -21,6 +24,7 @@ namespace TeamsBot.Services
         private readonly IServiceProvider _provider;
         private readonly IIntuneService _intuneService;
         private readonly IServiceNowService _serviceNowService;
+        private readonly IBlobService _blobService;
         private readonly GeminiService _geminiService;
         private readonly IConfiguration _config;
         private readonly MongoDb _mongoDb;
@@ -30,6 +34,7 @@ namespace TeamsBot.Services
             _provider = provider;
             _intuneService = _provider.GetRequiredService<IIntuneService>();
             _serviceNowService = _provider.GetRequiredService<IServiceNowService>();
+            _blobService = _provider.GetRequiredService<IBlobService>();
             _geminiService = new GeminiService();
             _mongoDb = new MongoDb();
             _config = config;
@@ -46,17 +51,27 @@ namespace TeamsBot.Services
             var systemAdmin = await _mongoDb.FindConversationAsync(userB.Id);
             var collection = _mongoDb.GetConversationsCollection();
             string userId = turnContext.Activity.From.AadObjectId;
-
+            var cardService = new CardService();
             var findUser = await _mongoDb.FindConversationAsync(userId);
+            bool isFirst = true;
+            string suiteId = string.Empty;
+            if (turnContext.Activity.Value is not null && turnContext.Activity.Value.ToString().Contains("installSoftware"))
+            {
+                userText= JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["name"].ToString();
+                suiteId = JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["objectId"].ToString();
+                isFirst = false;
+            }
+
             if (userText == null) //it has to be deepak singh
             {
                 var jObjectReq = JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["requestId"].ToString();
                 var serviceRequest = await _mongoDb.FindServiceRequestAsync(jObjectReq);
-                var cardService = new CardService();
+
                 if (turnContext.Activity.Value.ToString().Contains("approve"))
                 {
-                    var card = await cardService.GetCard("Approved your request Please click Ok when you are ready for the software to be installed.", senderName, jObjectReq);
-                   
+                    suiteId = Convert.ToString(JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["objectId"]);
+                    var card = await cardService.GetCard("Approved your request Please click Ok when you are ready for the software to be installed.", senderName, jObjectReq,suiteId);
+
 
                     var cardAttachment = new Attachment
                     {
@@ -84,7 +99,7 @@ namespace TeamsBot.Services
                 }
                 else if (turnContext.Activity.Value.ToString().Contains("reject"))
                 {
-                    var card = cardService.GetCard("Rejected your request Due to some Restrictions. please contact It Admin.", senderName, jObjectReq);
+                    var card = cardService.GetCard("Rejected your request Due to some Restrictions. please contact It Admin.", senderName, jObjectReq,suiteId);
                     var cardAttachment = new Attachment
                     {
                         ContentType = AdaptiveCard.ContentType,
@@ -107,25 +122,53 @@ namespace TeamsBot.Services
                 else if (turnContext.Activity.Value.ToString().Contains("Ok"))
                 {
                     // check the status of the ticket in the db
-
+                    suiteId = JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["objectId"].ToString();
                     await turnContext.SendActivityAsync(MessageFactory.Text("Thank You, Your Silent Installation is underway."), cancellationToken);
-                    await _intuneService.PushSoftware(turnContext.Activity.From.AadObjectId);
+                    if (suiteId == string.Empty)
+                    {
+                        await _intuneService.DeployApp(turnContext.Activity.From.AadObjectId);
+                    }
+                    else
+                    {
+                        var suiteCollection = _mongoDb.FindSoftwareSuiteAsync(suiteId);
+                        var blob = await _blobService.GetFileContent(suiteCollection.Result.ScriptName);
+                        await _intuneService.DeployScript(turnContext.Activity.From.AadObjectId, blob, suiteCollection.Result.ScriptName);
+                    }
                 }
-
             }
             else
             {
+                if (isFirst) { 
+                var isInstallation = userText.ToLower().Contains("install ") || userText.ToLower().Contains("notepad++ ");
+                var isList = await _geminiService.GetIsListGeminiResponseAsync(userText);
+                if (isList && !isInstallation)
+                {
+                    var softwareSuite = _mongoDb.GetSoftwareSuiteCollection().Find(Builders<SoftwareSuite>.Filter.Empty).ToListAsync();
+                        foreach (var item in softwareSuite.Result)
+                        {
+                            var card = cardService.BuildSoftwareSuiteCard(item); // your method
+                            var attachment = new Attachment
+                            {
+                                ContentType = "application/vnd.microsoft.card.adaptive",
+                                Content = card.Result
+                            };
+
+                            var reply = MessageFactory.Attachment(attachment);
+                            await turnContext.SendActivityAsync(reply, cancellationToken);
+                        }
+                    
+                    return;
+                }
                 var llmRes = await _geminiService.GetGeminiResponseAsync(userText);
 
-                var isInstallation = userText.ToLower().Contains("install ");
                 if (!isInstallation)
                 {
-                    var llmReply = $"Aries: {llmRes.Candidates[0].Content.Parts[0].Text}";
+                    var llmReply = $"**Aries:** {llmRes.Candidates[0].Content.Parts[0].Text}";
                     await turnContext.SendActivityAsync(MessageFactory.Text(llmReply, llmReply), cancellationToken);
                     return;
                 }
-                
-                var replyText = $"Echo: {turnContext.Activity.Text}";
+                }
+                // var replyText = $"Echo: {turnContext.Activity.Text}";
                 //await turnContext.SendActivityAsync(MessageFactory.Text(replyText, replyText), cancellationToken);
                 var conversationReference = turnContext.Activity.GetConversationReference();
                 // Store the conversation reference for the current user
@@ -178,7 +221,7 @@ namespace TeamsBot.Services
                                 Separator = true,
                                 Spacing = AdaptiveSpacing.Medium
                             },
-                            new AdaptiveTextBlock($"{senderName} Requested: {userText}")
+                            new AdaptiveTextBlock($"**{senderName}** Requested: {userText}")
                             {
                                 Wrap = true,
                                 Spacing = AdaptiveSpacing.Small,
@@ -191,7 +234,7 @@ namespace TeamsBot.Services
                             {
                                 Title = "✅ Approve",
                                 Style = "positive",
-                                Data = new { action = "approve" , requestId=serviceRequest.TicketNumber }
+                                Data = new { action = "approve" , requestId=serviceRequest.TicketNumber , objectId=suiteId }
                             },
                             new AdaptiveSubmitAction
                             {
