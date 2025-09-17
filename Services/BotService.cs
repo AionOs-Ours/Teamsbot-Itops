@@ -54,182 +54,182 @@ namespace TeamsBot.Services
 
 
                 var userText = turnContext.Activity.Text?.Trim();
-            var senderName = turnContext.Activity.From.Name;
-            var graphClient = GraphHelper.GetGraphClient(_config["Config:AppConfig:BotId"], _config["Config:AppConfig:TenantId"], _config["Config:AppConfig:AppPassword"]);
-            var proactiveMessageSender = new ProactiveMessageSender(graphClient);
-            var userB = await proactiveMessageSender.SendMessageToUserAsync(_config["Config:AppConfig:ItAdminEmail"], _config["Config:AppConfig:BotId"]);
-            var systemAdmin = await _mongoDb.FindConversationAsync(userB.Id);
-            var collection = _mongoDb.GetConversationsCollection();
-            string userId = turnContext.Activity.From.AadObjectId;
-            //var cardService = new CardService();
-            var findUser = await _mongoDb.FindConversationAsync(userId);
-            bool isFirst = true;
-            string suiteId = string.Empty;
-            var softwareSuites = _mongoDb.GetSoftwareSuiteCollection();
-           
-            if (turnContext.Activity.Value is not null && turnContext.Activity.Value.ToString().Contains("installSoftware"))
-            {
-                userText= JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["name"].ToString();
-                suiteId = JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["objectId"].ToString();
-                isFirst = false;
-            }
+                var senderName = turnContext.Activity.From.Name;
+                var graphClient = GraphHelper.GetGraphClient(_config["Config:AppConfig:BotId"], _config["Config:AppConfig:TenantId"], _config["Config:AppConfig:AppPassword"]);
+                var proactiveMessageSender = new ProactiveMessageSender(graphClient);
+                var userB = await proactiveMessageSender.SendMessageToUserAsync(_config["Config:AppConfig:ItAdminEmail"], _config["Config:AppConfig:BotId"]);
+                var systemAdmin = await _mongoDb.FindConversationAsync(userB.Id);
+                var collection = _mongoDb.GetConversationsCollection();
+                string userId = turnContext.Activity.From.AadObjectId;
+                var findUser = await _mongoDb.FindConversationAsync(userId);
+                bool isFirst = true;
+                string suiteId = string.Empty;
+                var softwareSuites = _mongoDb.GetSoftwareSuiteCollection();
 
-            if (userText == null) //it has to be deepak singh
-            {
-                var jObjectReq = JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["requestId"].ToString();
-                var serviceRequest = await _mongoDb.FindServiceRequestAsync(jObjectReq);
-
-                if (turnContext.Activity.Value.ToString().Contains("approve"))
+                if (turnContext.Activity.Value is not null && turnContext.Activity.Value.ToString().Contains("installSoftware"))
                 {
-                    suiteId = Convert.ToString(JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["objectId"]);
-                    var card = await _cardService.GetCard("Approved your request Please click Ok when you are ready for the software to be installed.", senderName, jObjectReq,suiteId);
-
-
-                    var cardAttachment = new Attachment
-                    {
-                        ContentType = AdaptiveCard.ContentType,
-                        Content = card
-                    };
-
-                    var reply = MessageFactory.Attachment(cardAttachment);
-                    // updating the status of the ticket in the db and servicenow
-                    // await _serviceNowService.UpdateIncidentStatusAsync(serviceRequest.TicketNumber, "2", "In Progress");
-                    var user = await _mongoDb.FindConversationAsync(serviceRequest.TeamsUserId);
-                    await turnContext.Adapter.ContinueConversationAsync(
-                   botId,
-                   JsonConvert.DeserializeObject<ConversationReference>(user.Conversation),
-                   async (proactiveTurnContext, proactiveCancellationToken) =>
-                   {
-
-                       await proactiveTurnContext.SendActivityAsync(reply, cancellationToken: proactiveCancellationToken);
-                   },
-                   cancellationToken);
-                    //ManageEngineAuthManager manageEngineAuthManager = new ManageEngineAuthManager();
-                    //var accessToken = await manageEngineAuthManager.GetAccessTokenAsync();
-                    //SDPOnDemandService sDPOnDemandService = new SDPOnDemandService(accessToken);
-                    //sDPOnDemandService.CreateRequestAsync("")
-                }
-                else if (turnContext.Activity.Value.ToString().Contains("reject"))
-                {
-                    var card = _cardService.GetCard("Rejected your request Due to some Restrictions. please contact It Admin.", senderName, jObjectReq,suiteId);
-                    var cardAttachment = new Attachment
-                    {
-                        ContentType = AdaptiveCard.ContentType,
-                        Content = card
-                    };
-                    var user = await _mongoDb.FindConversationAsync(serviceRequest.TeamsUserId);
-                    var reply = MessageFactory.Attachment(cardAttachment);
-                    await _serviceNowService.UpdateIncidentStatusAsync(serviceRequest.TicketNumber, "8", "Cancelled");
-                    await turnContext.Adapter.ContinueConversationAsync(
-                    botId,
-                    JsonConvert.DeserializeObject<ConversationReference>(user.Conversation),
-                    async (proactiveTurnContext, proactiveCancellationToken) =>
-                    {
-
-                        await proactiveTurnContext.SendActivityAsync(reply, cancellationToken: proactiveCancellationToken);
-                    },
-                    cancellationToken);
-
-                }
-                else if (turnContext.Activity.Value.ToString().Contains("Ok"))
-                {
-                    // check the status of the ticket in the db
+                    userText = JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["name"].ToString();
                     suiteId = JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["objectId"].ToString();
-                    await turnContext.SendActivityAsync(MessageFactory.Text("Thank You, Your Silent Installation is underway."), cancellationToken);
-                    if (suiteId == string.Empty)
-                    {
-                        await _intuneService.DeployApp(turnContext.Activity.From.AadObjectId);
-                    }
-                    else
-                    {
-                        var suiteCollection = _mongoDb.FindSoftwareSuiteAsync(suiteId);
-                        var scriptName = Convert.ToString(suiteCollection.Result.FirstOrDefault()["ScriptName"]);
-                        var blob = await _blobService.GetFileContent(scriptName);
-                        await _intuneService.DeployScript(turnContext.Activity.From.AadObjectId, blob, scriptName);
-                    }
+                    isFirst = false;
                 }
-            }
-            else
-            {
-                var isChatAllowed=await CheckConversation(findUser, userId, turnContext, cancellationToken);
-                if(isChatAllowed== ChatAccessEnum.Reject)
+
+                if (userText == null) //it has to be deepak singh
                 {
-                    return;
-                }
-                if (isFirst) { 
-                var isInstallation = userText.ToLower().Contains("install ") || userText.ToLower().Contains("notepad++ ");
-                var isList = await _geminiService.GetIsListGeminiResponseAsync(userText);
-                if (isList && !isInstallation)
-                {
-                       
-                        foreach (var item in softwareSuites.Result.Children<JObject>().ToArray())
+                    var jObjectReq = JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["requestId"].ToString();
+                    var serviceRequest = await _mongoDb.FindServiceRequestAsync(jObjectReq);
+
+                    if (turnContext.Activity.Value.ToString().Contains("approve"))
+                    {
+                        suiteId = Convert.ToString(JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["objectId"]);
+                        var card = await _cardService.GetCard("Approved your request Please click Ok when you are ready for the software to be installed.", senderName, jObjectReq, suiteId);
+
+
+                        var cardAttachment = new Attachment
                         {
-                            var card = _cardService.BuildSoftwareSuiteCard(item.ToObject<SoftwareSuite>()); // your method
-                            var attachment = new Attachment
-                            {
-                                ContentType = "application/vnd.microsoft.card.adaptive",
-                                Content = card.Result
-                            };
+                            ContentType = AdaptiveCard.ContentType,
+                            Content = card
+                        };
 
-                            var reply = MessageFactory.Attachment(attachment);
-                            await turnContext.SendActivityAsync(reply, cancellationToken);
+                        var reply = MessageFactory.Attachment(cardAttachment);
+                        // updating the status of the ticket in the db and servicenow
+                        var user = await _mongoDb.FindConversationAsync(serviceRequest.TeamsUserId);
+                        await turnContext.Adapter.ContinueConversationAsync(
+                       botId,
+                       JsonConvert.DeserializeObject<ConversationReference>(user.Conversation),
+                       async (proactiveTurnContext, proactiveCancellationToken) =>
+                       {
+
+                           await proactiveTurnContext.SendActivityAsync(reply, cancellationToken: proactiveCancellationToken);
+                       },
+                       cancellationToken);
+                    }
+                    else if (turnContext.Activity.Value.ToString().Contains("reject"))
+                    {
+                        var card = _cardService.GetCard("Rejected your request Due to some Restrictions. please contact It Admin.", senderName, jObjectReq, suiteId);
+                        var cardAttachment = new Attachment
+                        {
+                            ContentType = AdaptiveCard.ContentType,
+                            Content = card
+                        };
+                        var user = await _mongoDb.FindConversationAsync(serviceRequest.TeamsUserId);
+                        var reply = MessageFactory.Attachment(cardAttachment);
+                        await _serviceNowService.UpdateIncidentStatusAsync(serviceRequest.TicketNumber, "8", "Cancelled");
+                        await turnContext.Adapter.ContinueConversationAsync(
+                        botId,
+                        JsonConvert.DeserializeObject<ConversationReference>(user.Conversation),
+                        async (proactiveTurnContext, proactiveCancellationToken) =>
+                        {
+
+                            await proactiveTurnContext.SendActivityAsync(reply, cancellationToken: proactiveCancellationToken);
+                        },
+                        cancellationToken);
+
+                    }
+                    else if (turnContext.Activity.Value.ToString().Contains("Ok"))
+                    {
+                        // check the status of the ticket in the db
+                        suiteId = JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["objectId"].ToString();
+                        await turnContext.SendActivityAsync(MessageFactory.Text("Thank You, Your Silent Installation is underway."), cancellationToken);
+                        if (suiteId == string.Empty)
+                        {
+                            await _intuneService.DeployApp(turnContext.Activity.From.AadObjectId);
                         }
-                    
-                    return;
+                        else
+                        {
+                            var suiteCollection = _mongoDb.FindSoftwareSuiteAsync(suiteId);
+                            var scriptName = Convert.ToString(suiteCollection.Result.FirstOrDefault()["ScriptName"]);
+                            var blob = await _blobService.GetFileContent(scriptName);
+                            await _intuneService.DeployScript(turnContext.Activity.From.AadObjectId, blob, scriptName);
+                        }
+                    }
                 }
-                var llmRes = await _geminiService.GetGeminiResponseAsync(userText);
-
-                if (!isInstallation)
+                else
                 {
-                    var llmReply = $"**Aries:** {llmRes.Candidates[0].Content.Parts[0].Text}";
-                    await turnContext.SendActivityAsync(MessageFactory.Text(llmReply, llmReply), cancellationToken);
-                    return;
-                }
-                }
-              
+                    var isChatAllowed = await CheckConversation(findUser, userId, turnContext, cancellationToken);
+                    if (isChatAllowed == ChatAccessEnum.Reject)
+                    {
+                        return;
+                    }
+                    if (isFirst)
+                    {
+                        var isInstallation = userText.ToLower().Contains("install ") || userText.ToLower().Contains("notepad++ ");
+                        var isList = await _geminiService.GetIsListGeminiResponseAsync(userText);
+                        if (isList && !isInstallation)
+                        {
+
+                            foreach (var item in softwareSuites.Result.Children<JObject>().ToArray())
+                            {
+                                var card = _cardService.BuildSoftwareSuiteCard(item.ToObject<SoftwareSuite>()); // your method
+                                var attachment = new Attachment
+                                {
+                                    ContentType = "application/vnd.microsoft.card.adaptive",
+                                    Content = card.Result
+                                };
+
+                                var reply = MessageFactory.Attachment(attachment);
+                                await turnContext.SendActivityAsync(reply, cancellationToken);
+                            }
+
+                            return;
+                        }
+                        var llmRes = await _geminiService.GetGeminiResponseAsync(userText);
+
+                        if (!isInstallation)
+                        {
+                            var llmReply = $"**Aries:** {llmRes.Candidates[0].Content.Parts[0].Text}";
+                            await turnContext.SendActivityAsync(MessageFactory.Text(llmReply, llmReply), cancellationToken);
+                            return;
+                        }
+                    }
+
                     // create the entry in the system ticket which is created by the user
                     // TODO: integrate with manage engine and create the ticket and use the ticket number in the mongo collection
-                var serviceNowTicket = await _serviceNowService.CreateIncidentAsync(userText);
-                var serviceRequestCollection = _mongoDb.GetServiceRequestCollection();
-                var serviceRequest = new ServiceRequest(userId, userB.Id, userText, "121");
+                    var serviceNowTicket = await _serviceNowService.CreateIncidentAsync(userText);
+                    var serviceRequestCollection = _mongoDb.GetServiceRequestCollection();
+                    var serviceRequest = new ServiceRequest(userId, userB.Id, userText, "121");
 
-                await _mongoDb.CreateServiceRequestAsync(serviceRequest);
+                    await _mongoDb.CreateServiceRequestAsync(serviceRequest);
 
-                // Now, send a proactive message to the target user.
-                // NOTE: This will only work if the target user has initiated a conversation with the bot before.
+                    // Now, send a proactive message to the target user.
+                    // NOTE: This will only work if the target user has initiated a conversation with the bot before.
 
 
-                // gettiing the It Admin Conversation from db
-                // collection.FindAsync(Builders<Conversations>.Filter.Eq("TeamsUserId", userB.Id)).Result.ToListAsync();
-                if (systemAdmin is not null)// && userId != userB.Id)
-                {
-
-                    var approvalCard = await _cardService.BuildSoftwareApprovalCard(serviceRequest, userText, senderName, suiteId);
-                    var cardAttachment = new Attachment
+                    // gettiing the It Admin Conversation from db
+                    if (systemAdmin is not null)// && userId != userB.Id)
                     {
-                        ContentType = AdaptiveCard.ContentType,
-                        Content = approvalCard
-                    };
+                        var approvalCard = await _cardService.BuildSoftwareApprovalCard(serviceRequest, userText, senderName, suiteId);
+                        var cardAttachment = new Attachment
+                        {
+                            ContentType = AdaptiveCard.ContentType,
+                            Content = approvalCard
+                        };
 
-                    var reply = MessageFactory.Attachment(cardAttachment);
-                    await turnContext.Adapter.ContinueConversationAsync(
-                    botId,
-                    JsonConvert.DeserializeObject<ConversationReference>(systemAdmin.Conversation),
-                    async (proactiveTurnContext, proactiveCancellationToken) =>
-                    {
+                        var reply = MessageFactory.Attachment(cardAttachment);
+                        await turnContext.Adapter.ContinueConversationAsync(
+                        botId,
+                        JsonConvert.DeserializeObject<ConversationReference>(systemAdmin.Conversation),
+                        async (proactiveTurnContext, proactiveCancellationToken) =>
+                        {
 
-                        await proactiveTurnContext.SendActivityAsync(reply, cancellationToken: proactiveCancellationToken);
-                    },
-                    cancellationToken);
+                            await proactiveTurnContext.SendActivityAsync(reply, cancellationToken: proactiveCancellationToken);
+                        },
+                        cancellationToken);
+                    }
                 }
             }
-        }
-            public static DateTime ConvertUtcToIst(DateTime utcTime)
+            catch (Exception ex)
             {
-                TimeZoneInfo istZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
-                DateTime istTime = TimeZoneInfo.ConvertTimeFromUtc(utcTime, istZone);
-                return istTime;
+                var errorMessage = $"**Aries**: Oops! Something went wrong. Please try again later.";
+                await turnContext.SendActivityAsync(MessageFactory.Text(errorMessage, errorMessage), cancellationToken);
+                // Log the exception (ex) as needed for further investigation
             }
+        }
+        public static DateTime ConvertUtcToIst(DateTime utcTime)
+        {
+            TimeZoneInfo istZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+            DateTime istTime = TimeZoneInfo.ConvertTimeFromUtc(utcTime, istZone);
+            return istTime;
+        }
         private async Task<ChatAccessEnum> CheckConversation(Conversations conversation, string userId, ITurnContext<IMessageActivity> turnContext,CancellationToken cancellationToken)
         {
             var conversationReference = turnContext.Activity.GetConversationReference();
