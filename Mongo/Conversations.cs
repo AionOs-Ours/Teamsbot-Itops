@@ -10,6 +10,8 @@ namespace TeamsBot.Mongo
         public string Conversation { get; set; }
 
         public string TeamsUserId { get; set; }
+        public int PromptCount { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;  
+        public DateTime ModifiedAt { get; set; } = DateTime.UtcNow;  
     }
 }

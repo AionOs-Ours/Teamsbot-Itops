@@ -6,12 +6,14 @@ using System.Threading.Tasks;
 using AdaptiveCards;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.Bot.Builder;
+using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using TeamsBot.Models.Enums;
 using TeamsBot.Mongo;
 using TeamsBot.Services.GraphService;
 using TeamsBot.Services.Interfaces;
@@ -25,6 +27,7 @@ namespace TeamsBot.Services
         private readonly IIntuneService _intuneService;
         private readonly IServiceNowService _serviceNowService;
         private readonly IBlobService _blobService;
+        private readonly ICardService _cardService;
         private readonly GeminiService _geminiService;
         private readonly IConfiguration _config;
         private readonly MongoDb _mongoDb;
@@ -35,6 +38,7 @@ namespace TeamsBot.Services
             _intuneService = _provider.GetRequiredService<IIntuneService>();
             _serviceNowService = _provider.GetRequiredService<IServiceNowService>();
             _blobService = _provider.GetRequiredService<IBlobService>();
+            _cardService = _provider.GetRequiredService<ICardService>();
             _geminiService = new GeminiService();
             _mongoDb = new MongoDb();
             _config = config;
@@ -51,7 +55,7 @@ namespace TeamsBot.Services
             var systemAdmin = await _mongoDb.FindConversationAsync(userB.Id);
             var collection = _mongoDb.GetConversationsCollection();
             string userId = turnContext.Activity.From.AadObjectId;
-            var cardService = new CardService();
+            //var cardService = new CardService();
             var findUser = await _mongoDb.FindConversationAsync(userId);
             bool isFirst = true;
             string suiteId = string.Empty;
@@ -70,7 +74,7 @@ namespace TeamsBot.Services
                 if (turnContext.Activity.Value.ToString().Contains("approve"))
                 {
                     suiteId = Convert.ToString(JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["objectId"]);
-                    var card = await cardService.GetCard("Approved your request Please click Ok when you are ready for the software to be installed.", senderName, jObjectReq,suiteId);
+                    var card = await _cardService.GetCard("Approved your request Please click Ok when you are ready for the software to be installed.", senderName, jObjectReq,suiteId);
 
 
                     var cardAttachment = new Attachment
@@ -99,7 +103,7 @@ namespace TeamsBot.Services
                 }
                 else if (turnContext.Activity.Value.ToString().Contains("reject"))
                 {
-                    var card = cardService.GetCard("Rejected your request Due to some Restrictions. please contact It Admin.", senderName, jObjectReq,suiteId);
+                    var card = _cardService.GetCard("Rejected your request Due to some Restrictions. please contact It Admin.", senderName, jObjectReq,suiteId);
                     var cardAttachment = new Attachment
                     {
                         ContentType = AdaptiveCard.ContentType,
@@ -138,6 +142,11 @@ namespace TeamsBot.Services
             }
             else
             {
+                var isChatAllowed=await CheckConversation(findUser, userId, turnContext, cancellationToken);
+                if(isChatAllowed== ChatAccessEnum.Reject)
+                {
+                    return;
+                }
                 if (isFirst) { 
                 var isInstallation = userText.ToLower().Contains("install ") || userText.ToLower().Contains("notepad++ ");
                 var isList = await _geminiService.GetIsListGeminiResponseAsync(userText);
@@ -146,7 +155,7 @@ namespace TeamsBot.Services
                     var softwareSuite = _mongoDb.GetSoftwareSuiteCollection().Find(Builders<SoftwareSuite>.Filter.Empty).ToListAsync();
                         foreach (var item in softwareSuite.Result)
                         {
-                            var card = cardService.BuildSoftwareSuiteCard(item); // your method
+                            var card = _cardService.BuildSoftwareSuiteCard(item); // your method
                             var attachment = new Attachment
                             {
                                 ContentType = "application/vnd.microsoft.card.adaptive",
@@ -168,21 +177,12 @@ namespace TeamsBot.Services
                     return;
                 }
                 }
-                // var replyText = $"Echo: {turnContext.Activity.Text}";
-                //await turnContext.SendActivityAsync(MessageFactory.Text(replyText, replyText), cancellationToken);
-                var conversationReference = turnContext.Activity.GetConversationReference();
-                // Store the conversation reference for the current user
-                
-                if (findUser is null)
-                {
-                    var jsonString = JsonConvert.SerializeObject(conversationReference);
-                    await _mongoDb.CreateConversationAsync(new Conversations { Conversation = jsonString, TeamsUserId = userId });
-                }
-                // create the entry in the system ticket which is created by the user
-                // TODO: integrate with manage engine and create the ticket and use the ticket number in the mongo collection
-                var serviceNowTicket=await _serviceNowService.CreateIncidentAsync(userText);
+              
+                    // create the entry in the system ticket which is created by the user
+                    // TODO: integrate with manage engine and create the ticket and use the ticket number in the mongo collection
+                var serviceNowTicket = await _serviceNowService.CreateIncidentAsync(userText);
                 var serviceRequestCollection = _mongoDb.GetServiceRequestCollection();
-                var serviceRequest = new ServiceRequest(userId, userText, userB.Id,"121");
+                var serviceRequest = new ServiceRequest(userId, userB.Id, userText, "121");
 
                 await _mongoDb.CreateServiceRequestAsync(serviceRequest);
 
@@ -195,68 +195,14 @@ namespace TeamsBot.Services
                 if (systemAdmin is not null)// && userId != userB.Id)
                 {
 
-                    var card = new AdaptiveCard(new AdaptiveSchemaVersion(1, 2))
-                    {
-                        Body = new List<AdaptiveElement>
-                        {
-                            new AdaptiveTextBlock("🎯 User Request")
-                            {
-                                Size = AdaptiveTextSize.ExtraLarge,
-                                Weight = AdaptiveTextWeight.Bolder,
-                                Color = AdaptiveTextColor.Accent,
-                                HorizontalAlignment = AdaptiveHorizontalAlignment.Center,
-                                Spacing = AdaptiveSpacing.Large
-                            },
-                            new AdaptiveImage("https://adaptivecards.io/content/cats/1.png")
-                            {
-                                Size = AdaptiveImageSize.Medium,
-                                Style = AdaptiveImageStyle.Person,
-                                HorizontalAlignment = AdaptiveHorizontalAlignment.Center,
-                                AltText = "User Avatar"
-                            },
-                            new AdaptiveTextBlock($"📝 Request Summary {serviceRequest.TicketNumber}")
-                            {
-                                Size = AdaptiveTextSize.Medium,
-                                Weight = AdaptiveTextWeight.Bolder,
-                                Separator = true,
-                                Spacing = AdaptiveSpacing.Medium
-                            },
-                            new AdaptiveTextBlock($"**{senderName}** Requested: {userText}")
-                            {
-                                Wrap = true,
-                                Spacing = AdaptiveSpacing.Small,
-                                Color = AdaptiveTextColor.Default
-                            }
-                        },
-                        Actions = new List<AdaptiveAction>
-                        {
-                            new AdaptiveSubmitAction
-                            {
-                                Title = "✅ Approve",
-                                Style = "positive",
-                                Data = new { action = "approve" , requestId=serviceRequest.TicketNumber , objectId=suiteId }
-                            },
-                            new AdaptiveSubmitAction
-                            {
-                                Title = "❌ Reject",
-                                Style = "destructive",
-                                Data = new { action = "reject" }
-                            },
-                            new AdaptiveSubmitAction
-                            {
-                                Title = "🔍 More Info",
-                                Data = new { action = "info" }
-                            }
-                        }
-                    };
+                    var approvalCard = await _cardService.BuildSoftwareApprovalCard(serviceRequest, userText, senderName, suiteId);
                     var cardAttachment = new Attachment
                     {
                         ContentType = AdaptiveCard.ContentType,
-                        Content = card
+                        Content = approvalCard
                     };
 
                     var reply = MessageFactory.Attachment(cardAttachment);
-                    // await turnContext.SendActivityAsync(reply, cancellationToken);
                     await turnContext.Adapter.ContinueConversationAsync(
                     botId,
                     JsonConvert.DeserializeObject<ConversationReference>(systemAdmin.Conversation),
@@ -268,6 +214,44 @@ namespace TeamsBot.Services
                     cancellationToken);
                 }
             }
+        }
+            public static DateTime ConvertUtcToIst(DateTime utcTime)
+            {
+                TimeZoneInfo istZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+                DateTime istTime = TimeZoneInfo.ConvertTimeFromUtc(utcTime, istZone);
+                return istTime;
+            }
+        private async Task<ChatAccessEnum> CheckConversation(Conversations conversation, string userId, ITurnContext<IMessageActivity> turnContext,CancellationToken cancellationToken)
+        {
+            var conversationReference = turnContext.Activity.GetConversationReference();
+            // Store the conversation reference for the current user
+            var jsonString = JsonConvert.SerializeObject(conversationReference);
+            if (conversation is null)
+            {
+                await _mongoDb.CreateConversationAsync(new Conversations { Conversation = jsonString, TeamsUserId = userId, PromptCount = 0, });
+            }
+            else
+            {
+                if (conversation.PromptCount >= 20)
+                {
+                    var replyText = $"**Aries**: Your 20 prompts for the day is consumed. Please try again tomorrow.";
+                    await turnContext.SendActivityAsync(MessageFactory.Text(replyText, replyText), cancellationToken);
+                    return ChatAccessEnum.Reject;
+                }
+                else
+                {
+                    var lastEntry = ConvertUtcToIst(conversation.ModifiedAt);
+                    var currentTime = ConvertUtcToIst(DateTime.UtcNow);
+                    if (lastEntry.Date < currentTime.Date)
+                    {
+                        conversation.PromptCount = 0;
+                    }
+                    conversation.PromptCount += 1;
+                    conversation.ModifiedAt = DateTime.UtcNow;
+                }
+                await _mongoDb.UpdateConversationAsync(conversation);
+            }
+            return ChatAccessEnum.Ok;
         }
     }
 }
