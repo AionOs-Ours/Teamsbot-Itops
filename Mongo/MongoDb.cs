@@ -69,6 +69,15 @@ namespace TeamsBot.Mongo
             var collection = GetConversationsCollection();
             await collection.InsertOneAsync(conversation);
         }
+        public async Task UpdateConversationAsync(Conversations conversation)
+        {
+            var collection = GetConversationsCollection();
+            var filter = Builders<Conversations>.Filter.Eq(c => c.Id, conversation.Id);
+            var update = Builders<Conversations>.Update
+                .Set(c => c.PromptCount, conversation.PromptCount)
+                .Set(c => c.ModifiedAt, conversation.ModifiedAt); // Fix: Use ModifiedAt property, not TeamsUserId
+            await collection.UpdateOneAsync(filter, update);
+        }
         public async Task<Conversations> FindConversationAsync(string TeamsUserId)
         {
             var collection = GetConversationsCollection();

@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using AdaptiveCards;
+using Microsoft.Graph.Beta.Models;
 using Newtonsoft.Json;
 using TeamsBot.Mongo;
 using TeamsBot.Services.Interfaces;
@@ -111,6 +112,65 @@ namespace TeamsBot.Services
                                 Data = new { action = "installSoftware", requestId=suite.Id.ToString() , name =suite.SuiteName, objectId= suite.Id.ToString()}
                             }
                         });
+
+            return card;
+        }
+        public async Task<AdaptiveCard> BuildSoftwareApprovalCard(ServiceRequest serviceRequest,string userText,string sender, string suiteId)
+        {
+            var card = new AdaptiveCard(new AdaptiveSchemaVersion(1, 2))
+            {
+                Body = new List<AdaptiveElement>
+                        {
+                            new AdaptiveTextBlock("🎯 User Request")
+                            {
+                                Size = AdaptiveTextSize.ExtraLarge,
+                                Weight = AdaptiveTextWeight.Bolder,
+                                Color = AdaptiveTextColor.Accent,
+                                HorizontalAlignment = AdaptiveHorizontalAlignment.Center,
+                                Spacing = AdaptiveSpacing.Large
+                            },
+                            new AdaptiveImage("https://adaptivecards.io/content/cats/1.png")
+                            {
+                                Size = AdaptiveImageSize.Medium,
+                                Style = AdaptiveImageStyle.Person,
+                                HorizontalAlignment = AdaptiveHorizontalAlignment.Center,
+                                AltText = "User Avatar"
+                            },
+                            new AdaptiveTextBlock($"📝 Request Summary {serviceRequest.TicketNumber}")
+                            {
+                                Size = AdaptiveTextSize.Medium,
+                                Weight = AdaptiveTextWeight.Bolder,
+                                Separator = true,
+                                Spacing = AdaptiveSpacing.Medium
+                            },
+                            new AdaptiveTextBlock($"**{sender}** Requested: {userText}")
+                            {
+                                Wrap = true,
+                                Spacing = AdaptiveSpacing.Small,
+                                Color = AdaptiveTextColor.Default
+                            }
+                        },
+                Actions = new List<AdaptiveAction>
+                        {
+                            new AdaptiveSubmitAction
+                            {
+                                Title = "✅ Approve",
+                                Style = "positive",
+                                Data = new { action = "approve" , requestId=serviceRequest.TicketNumber , objectId=suiteId }
+                            },
+                            new AdaptiveSubmitAction
+                            {
+                                Title = "❌ Reject",
+                                Style = "destructive",
+                                Data = new { action = "reject" }
+                            },
+                            new AdaptiveSubmitAction
+                            {
+                                Title = "🔍 More Info",
+                                Data = new { action = "info" }
+                            }
+                        }
+            };
 
             return card;
         }
