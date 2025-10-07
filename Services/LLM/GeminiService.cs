@@ -13,7 +13,7 @@ namespace TeamsBot.Services.LLM
     public class GeminiService
     {
         private readonly HttpClient _httpClient;
-        private readonly string _apiKey = "AIzaSyDZBlctxepAYwTlGqBfpjbhZDjnd0WMkgs";
+        private readonly string _apiKey = "AIzaSyDOBuGFjkNMEHqce2ZtRClP2c3IixLF598";
         private const string Endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
         public GeminiService()
         {
