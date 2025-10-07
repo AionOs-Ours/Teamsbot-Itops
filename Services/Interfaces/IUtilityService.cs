@@ -6,8 +6,9 @@ using Microsoft.Bot.Schema;
 
 namespace TeamsBot.Services.Interfaces
 {
-    public interface IBotService
+    public interface IUtilityService
     {
-        Task ProcessMessage(ITurnContext<IMessageActivity> turnContext,CancellationToken cancellationToken);
+        string DetectIntent(string input);
+        Task RunProcess(string request);
     }
 }

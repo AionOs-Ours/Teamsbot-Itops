@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Graph.Beta.Models;
 using MongoDB.Driver;
 using Newtonsoft.Json;
 using TeamsBot.Mongo;
@@ -21,9 +22,11 @@ namespace TeamsBot.Bots
     public class EchoBot : ActivityHandler
     {
         private readonly IBotService _botService;
+        private readonly ICardService _cardService;
         public EchoBot(IServiceProvider serviceProvider)
         {
             _botService = serviceProvider.GetRequiredService<IBotService>();
+            _cardService = serviceProvider.GetRequiredService<ICardService>();
         }
         protected override async Task OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
          {
@@ -31,7 +34,7 @@ namespace TeamsBot.Bots
             {
 
                 await turnContext.SendActivityAsync(new Activity { Type = ActivityTypes.Typing }, cancellationToken);
-                await _botService.ProcessBotMessage(turnContext, cancellationToken);
+                await _botService.ProcessMessage(turnContext, cancellationToken);
             }
             catch (System.Exception ex)
             {

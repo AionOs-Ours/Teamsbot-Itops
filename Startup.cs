@@ -12,7 +12,9 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 using TeamsBot.Services;
+using TeamsBot.Services.Abstraction;
 using TeamsBot.Services.Interfaces;
+using TeamsBot.Services.Operations;
 
 namespace TeamsBot
 {
@@ -41,9 +43,11 @@ namespace TeamsBot
             services.AddSingleton<IBotFrameworkHttpAdapter, AdapterWithErrorHandler>();
             services.AddSingleton<ICardService, CardService>();
             services.AddSingleton<IBlobService, BlobService>();
+            services.AddSingleton<IUtilityService, UtilityService>();
             services.AddSingleton<IBotService, BotService>();
             services.AddSingleton<IIntuneService, IntuneService>();
             services.AddSingleton<IServiceNowService, ServiceNowService>();
+          
 
 
             // Create the bot as a transient. In this case the ASP Controller is expecting an IBot.

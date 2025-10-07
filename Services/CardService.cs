@@ -174,6 +174,63 @@ namespace TeamsBot.Services
 
             return card;
         }
+        public async Task<AdaptiveCard> CreateMainMenuCard()
+        {
+            var card = new AdaptiveCard(new AdaptiveSchemaVersion(1, 4))
+            {
+                Body = new List<AdaptiveElement>
+            {
+                new AdaptiveTextBlock
+                {
+                    Text = "Select a Service",
+                    Weight = AdaptiveTextWeight.Bolder,
+                    Size = AdaptiveTextSize.Medium,
+                    Wrap = true
+                }
+            },
+                Actions = new List<AdaptiveAction>
+            {
+                new AdaptiveSubmitAction
+                {
+                    Title = "💻 Application Installation",
+                    Data = new { Action = "application_installation" }
+                },
+                new AdaptiveSubmitAction
+                {
+                    Title = "🛠 IT Support",
+                    Data = new { Action = "it_support" }
+                },
+                new AdaptiveSubmitAction
+                {
+                    Title = "✈️ Travel Expense Mgmt",
+                    Data = new { Action = "travel_expense" }
+                },
+                new AdaptiveSubmitAction
+                {
+                    Title = "🏖 HR - Leave / Balance Q&A",
+                    Data = new { Action = "hr_queries" }
+                },
+                new AdaptiveSubmitAction
+                {
+                    Title = "📑 Sales Proposal Creation",
+                    Data = new { Action = "sales_proposal" }
+                },
+                new AdaptiveSubmitAction
+                {
+                    Title = "📊 Pitch Deck Creation",
+                    Data = new { Action = "pitch_deck" }
+                },
+                new AdaptiveSubmitAction
+                {
+                    Title = "📢 Sales Related Content",
+                    Data = new { Action = "sales_content" }
+                }
+            }
+            };
+
+            
+            return card;
+        }
     }
 }
 
