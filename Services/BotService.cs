@@ -153,8 +153,8 @@ namespace TeamsBot.Services
                     if (isFirst)
                     {
                         var isInstallation = false;//userText.ToLower().Contains("install ") || userText.ToLower().Contains("notepad++ ");
-                        var isList = userText.ToLower().Contains("software ");//await _geminiService.GetIsListGeminiResponseAsync(userText);
-                        if (true)//(isList && !isInstallation)
+                        var isList = userText.ToLower().Contains("software ") || userText.ToLower().Contains("softwares ");//await _geminiService.GetIsListGeminiResponseAsync(userText);
+                        if (isList && !isInstallation)
                         {
 
                             foreach (var item in softwareSuites.Result.Children<JObject>().ToArray())

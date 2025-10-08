@@ -162,7 +162,7 @@ namespace TeamsBot.Services
                             {
                                 Title = "❌ Reject",
                                 Style = "destructive",
-                                Data = new { action = "reject" }
+                                Data = new { action = "reject" , requestId=serviceRequest.TicketNumber , objectId=suiteId}
                             },
                             new AdaptiveSubmitAction
                             {
