@@ -153,9 +153,9 @@ namespace TeamsBot.Services
             try
             {
                 // get AAD deviceId from Intune managedDevice
-                var md = await _graphClient.DeviceManagement.ManagedDevices[managedDeviceId].GetAsync();
-                if (md == null)
-                    throw new Exception("Managed device not found.");
+                //var md = await _graphClient.DeviceManagement.ManagedDevices[managedDeviceId].GetAsync();
+                //if (md == null)
+                //    throw new Exception("Managed device not found.");
 
                 // find the corresponding Azure AD device object
                 //var devices = await _graphClient.Devices.GetAsync(rc =>
