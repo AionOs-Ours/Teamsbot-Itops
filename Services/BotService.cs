@@ -10,6 +10,7 @@ using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Graph.Beta.Models;
 using MongoDB.Driver;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -44,7 +45,7 @@ namespace TeamsBot.Services
             _mongoDb = new MongoDb();
             _gitService = new GitService();
             _config = config;
-            botId= _config["Config:AppConfig:BotId"];
+            botId = _config["Config:AppConfig:BotId"];
         }
 
         public async Task ProcessBotMessage(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
@@ -84,7 +85,7 @@ namespace TeamsBot.Services
                         var card = await _cardService.GetCard("Approved your request Please click Ok when you are ready for the software to be installed.", senderName, jObjectReq, suiteId);
 
 
-                        var cardAttachment = new Attachment
+                        var cardAttachment = new Microsoft.Bot.Schema.Attachment
                         {
                             ContentType = AdaptiveCard.ContentType,
                             Content = card
@@ -105,8 +106,9 @@ namespace TeamsBot.Services
                     }
                     else if (turnContext.Activity.Value.ToString().Contains("reject"))
                     {
-                        var card = _cardService.GetCard("Rejected your request Due to some Restrictions. please contact It Admin.", senderName, jObjectReq, suiteId);
-                        var cardAttachment = new Attachment
+                        suiteId = Convert.ToString(JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["objectId"]);
+                        var card = await _cardService.GetCard("Rejected your request Due to some Restrictions. please contact It Admin.", senderName, jObjectReq, suiteId,true);
+                        var cardAttachment = new Microsoft.Bot.Schema.Attachment
                         {
                             ContentType = AdaptiveCard.ContentType,
                             Content = card
@@ -139,7 +141,9 @@ namespace TeamsBot.Services
                             var suiteCollection = _mongoDb.FindSoftwareSuiteAsync(suiteId);
                             var scriptName = Convert.ToString(suiteCollection.Result.FirstOrDefault()["ScriptName"]);
                             var blob = await _blobService.GetFileContent(scriptName);
-                            await _intuneService.DeployScript(turnContext.Activity.From.AadObjectId, blob, scriptName);
+                            var _intuneAutomation = new IntuneAutomation();
+                            await _intuneAutomation.RunAutomationAsync($"Group-{jObjectReq}", scriptName, blob, turnContext.Activity.From.AadObjectId);
+                            // await _intuneService.DeployScript(turnContext.Activity.From.AadObjectId, blob, scriptName);
                         }
                     }
                 }
@@ -152,15 +156,18 @@ namespace TeamsBot.Services
                     }
                     if (isFirst)
                     {
+                        var intentDetector = new IntentDetector();
                         var isInstallation = false;//userText.ToLower().Contains("install ") || userText.ToLower().Contains("notepad++ ");
-                        var isList = userText.ToLower().Contains("software") || userText.ToLower().Contains("softwares");//await _geminiService.GetIsListGeminiResponseAsync(userText);
-                        if (isList && !isInstallation)
+                        var (intent, software) = IntentDetector.DetectIntent(userText);
+                        // userText.ToLower().Contains("software") || userText.ToLower().Contains("softwares");//await _geminiService.GetIsListGeminiResponseAsync(userText);
+                        if (intent == IntentType.ListSoftware)    //&& !isInstallation)
                         {
-
+                            var replyText = $"**Aries**: Here is the List of Softwares we have.";
+                            await turnContext.SendActivityAsync(MessageFactory.Text(replyText, replyText), cancellationToken);
                             foreach (var item in softwareSuites.Result.Children<JObject>().ToArray())
                             {
                                 var card = _cardService.BuildSoftwareSuiteCard(item.ToObject<SoftwareSuite>()); // your method
-                                var attachment = new Attachment
+                                var attachment = new Microsoft.Bot.Schema.Attachment
                                 {
                                     ContentType = "application/vnd.microsoft.card.adaptive",
                                     Content = card.Result
@@ -172,8 +179,22 @@ namespace TeamsBot.Services
 
                             return;
                         }
-                        var llmRes = await _geminiService.GetGeminiResponseAsync(userText);
+                        else if (intent == IntentType.SpecificSoftware) //isInstallation
+                        {
+                            var softwareSuite = await _gitService.GetSoftwareSuite(softwareSuites.Result, software);
+                            var card = _cardService.BuildSoftwareSuiteCard(softwareSuite); // your method
+                            var attachment = new Microsoft.Bot.Schema.Attachment
+                            {
+                                ContentType = "application/vnd.microsoft.card.adaptive",
+                                Content = card.Result
+                            };
 
+                            var reply = MessageFactory.Attachment(attachment);
+                            await turnContext.SendActivityAsync(reply, cancellationToken);
+                            return;
+                        }
+
+                        var llmRes = await _geminiService.GetGeminiResponseAsync(userText);
                         if (!isInstallation)
                         {
                             var llmReply = $"**Aries:** {llmRes.Candidates[0].Content.Parts[0].Text}";
@@ -198,7 +219,7 @@ namespace TeamsBot.Services
                     if (systemAdmin is not null)// && userId != userB.Id)
                     {
                         var approvalCard = await _cardService.BuildSoftwareApprovalCard(serviceRequest, userText, senderName, suiteId);
-                        var cardAttachment = new Attachment
+                        var cardAttachment = new Microsoft.Bot.Schema.Attachment
                         {
                             ContentType = AdaptiveCard.ContentType,
                             Content = approvalCard
@@ -230,7 +251,7 @@ namespace TeamsBot.Services
             DateTime istTime = TimeZoneInfo.ConvertTimeFromUtc(utcTime, istZone);
             return istTime;
         }
-        private async Task<ChatAccessEnum> CheckConversation(Conversations conversation, string userId, ITurnContext<IMessageActivity> turnContext,CancellationToken cancellationToken)
+        private async Task<ChatAccessEnum> CheckConversation(Conversations conversation, string userId, ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
         {
             var conversationReference = turnContext.Activity.GetConversationReference();
             // Store the conversation reference for the current user

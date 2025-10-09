@@ -8,8 +8,7 @@ namespace TeamsBot.Mongo
 {
     public class SoftwareSuite
     {
-        [BsonId]
-        public ObjectId Id { get; set; }
+        public string _id { get; set; }
 
         [BsonElement("SuiteName")]
         public string SuiteName { get; set; }

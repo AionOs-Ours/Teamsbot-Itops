@@ -14,7 +14,7 @@ namespace TeamsBot.Services
         {
                     
         }
-        public async Task<AdaptiveCard> GetCard(string responseMsg, string senderName, string serviceRequest,string objectId) {
+        public async Task<AdaptiveCard> GetCard(string responseMsg, string senderName, string serviceRequest,string objectId, bool reject=false) {
             if(string.IsNullOrEmpty(responseMsg))
             {
                 responseMsg = "Approved your request Please click on Ok when you are ready for the software to be insatlled.";
@@ -52,7 +52,10 @@ namespace TeamsBot.Services
                                 Color = AdaptiveTextColor.Default
                             }
                         },
-                Actions = new List<AdaptiveAction>
+                
+            };
+            if(!reject)
+            card.Actions = new List<AdaptiveAction>
                         {
                             new AdaptiveSubmitAction
                             {
@@ -60,8 +63,7 @@ namespace TeamsBot.Services
                                 Style = "positive",
                                 Data = new { action = "Ok", requestId=serviceRequest ,objectId=objectId}
                             }
-                        }
-            };
+                        };
             return card;
         }
 
@@ -109,7 +111,7 @@ namespace TeamsBot.Services
                             {
                                 Title = "✅ Install",
                                 Style = "positive",
-                                Data = new { action = "installSoftware", requestId=suite.Id.ToString() , name =suite.SuiteName, objectId= suite.Id.ToString()}
+                                Data = new { action = "installSoftware", requestId=suite._id.ToString() , name =suite.SuiteName, objectId= suite._id.ToString()}
                             }
                         });
 
@@ -163,12 +165,12 @@ namespace TeamsBot.Services
                                 Title = "❌ Reject",
                                 Style = "destructive",
                                 Data = new { action = "reject" , requestId=serviceRequest.TicketNumber , objectId=suiteId}
-                            },
-                            new AdaptiveSubmitAction
-                            {
-                                Title = "🔍 More Info",
-                                Data = new { action = "info" }
                             }
+                            //new AdaptiveSubmitAction
+                            //{
+                            //    Title = "🔍 More Info",
+                            //    Data = new { action = "info" }
+                            //}
                         }
             };
 

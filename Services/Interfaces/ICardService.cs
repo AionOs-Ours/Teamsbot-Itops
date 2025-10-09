@@ -6,7 +6,7 @@ namespace TeamsBot.Services.Interfaces
 {
     public interface ICardService
     {
-        Task<AdaptiveCard> GetCard(string responseMsg, string senderName, string serviceRequest, string objectId);
+        Task<AdaptiveCard> GetCard(string responseMsg, string senderName, string serviceRequest, string objectId, bool reject = false);
         Task<AdaptiveCard> BuildSoftwareSuiteCard(SoftwareSuite suite);
         Task<AdaptiveCard> BuildSoftwareApprovalCard(ServiceRequest serviceRequest, string userText, string sender, string suiteId);
     }

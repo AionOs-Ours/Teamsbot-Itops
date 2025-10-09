@@ -11,6 +11,8 @@ using Azure.Core;
 using Azure.Identity;
 using Microsoft.Graph.Beta;
 using Microsoft.Graph.Beta.Models;
+using Microsoft.Graph.Beta.DeviceManagement.ManagedDevices.Item.SyncDevice;
+using Microsoft.Graph.Beta.Models.Networkaccess;
 using TeamsBot.Models;
 using TeamsBot.Services.Interfaces;
 
@@ -46,7 +48,7 @@ namespace TeamsBot.Services
             httpClient.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", token.Token);
 
-            var assignResponse=await httpClient.PostAsync(
+            var assignResponse = await httpClient.PostAsync(
                         $"https://graph.microsoft.com/beta/deviceManagement/deviceManagementScripts/{scriptId}/assign",
                         assignContent);
 
@@ -69,7 +71,7 @@ namespace TeamsBot.Services
 
 
                 // 🔹 Replace with your values
-         
+
                 string deviceName = "AINHYDLP4359412";       // device to target
 
 
@@ -171,7 +173,7 @@ namespace TeamsBot.Services
                     await graphClient.Groups[existingGroup.Id].Members.Ref
                     .PostAsync(new ReferenceCreate
                     {
-                        OdataId = $"https://graph.microsoft.com/v1.0/directoryObjects/{device.UserId}"
+                        OdataId = $"https://graph.microsoft.com/v1.0/directoryObjects/{device.AzureADDeviceId}"
                     });
 
                 }
@@ -268,7 +270,7 @@ namespace TeamsBot.Services
             }
             return "Done";
         }
-        public async Task<string> DeployScript(string userId, string scriptContent, string scriptName="PythonSuite.ps1")
+        public async Task<string> DeployScript(string userId, string scriptContent, string scriptName = "PythonSuite.ps1")
         {
             try
             {
@@ -309,20 +311,46 @@ namespace TeamsBot.Services
                     var assignPayload = new
                     {
                         deviceManagementScriptAssignments = new[]
-           {
-                new {
-                    target = new Dictionary<string, object>
-            {
-                { "@odata.type", "#microsoft.graph.groupAssignmentTarget" },
-                { "groupId", graphModel.utilityId }
-            }
-                }
-            }
+                        {
+                            new {
+                                    target = new Dictionary<string, object>
+                                        {
+                                            { "@odata.type", "#microsoft.graph.groupAssignmentTarget" },
+                                            { "groupId", graphModel.utilityId }
+                                        }
+                                 }
+                        }
                     };
 
                     var assignContent = new StringContent(JsonSerializer.Serialize(assignPayload), Encoding.UTF8, "application/json");
                     var response = await assignScript(scriptId, assignContent);
                 }
+                var groupMembers = await graphModel.graphServiceClient.Groups[graphModel.utilityId].Members.GetAsync();
+
+                if (groupMembers?.Value == null || groupMembers.Value.Count == 0)
+                {
+                    Console.WriteLine("⚠️ No devices found in this group.");
+                    return "No devices to sync.";
+                }
+                // 3️⃣ Force sync for each managed device
+                foreach (var member in groupMembers.Value)
+                {
+                    if(member is Microsoft.Graph.Beta.Models.Device device)
+                    {
+                        Console.WriteLine($"Triggering Intune sync for device: {device.DisplayName} ({device.Id})");
+
+                        // Graph SDK call (preferred way)
+                        await graphModel.graphServiceClient
+                            .DeviceManagement
+                            .ManagedDevices[device.DeviceId]
+                            .SyncDevice
+                            .PostAsync();
+
+                        // optional: small delay to avoid throttling
+                        await Task.Delay(1000);
+                    }
+                }
+
                 return "Done";
             }
             catch (Exception ex)
@@ -368,5 +396,5 @@ namespace TeamsBot.Services
     }
 
 
-   
+
 }
