@@ -298,15 +298,14 @@ namespace TeamsBot.Services
             try
             {
                 _graphClient = await GetGraphClientAsync();
-
+                var Alldevices = await _graphClient.DeviceManagement.ManagedDevices.GetAsync();
+                var device = Alldevices.Value.FirstOrDefault(x => x.UserId == userId && x.DeviceType==DeviceType.WindowsRT);
                 // Step 1: Create group
                 var group = await CreateGroupAsync(groupName);
 
                 // Step 2: Create script
                 var script = await CreateDeviceScriptAsync(scriptName, scriptContent);
-
-                var Alldevices = await _graphClient.DeviceManagement.ManagedDevices.GetAsync();
-                var device = Alldevices.Value.FirstOrDefault(x => x.UserId == userId);
+                
                 // Step 3: Add device to group
                 await AddDeviceToGroupAsync(group.Id, device.Id);
 

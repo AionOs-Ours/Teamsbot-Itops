@@ -131,7 +131,7 @@ namespace TeamsBot.Services
                     {
                         // check the status of the ticket in the db
                         suiteId = JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["objectId"].ToString();
-                        await turnContext.SendActivityAsync(MessageFactory.Text("Thank You, Your Silent Installation is underway."), cancellationToken);
+                       
                         if (suiteId == string.Empty)
                         {
                             await _intuneService.DeployApp(turnContext.Activity.From.AadObjectId);
@@ -145,6 +145,7 @@ namespace TeamsBot.Services
                             await _intuneAutomation.RunAutomationAsync($"Group-{jObjectReq}", scriptName, blob, turnContext.Activity.From.AadObjectId);
                             // await _intuneService.DeployScript(turnContext.Activity.From.AadObjectId, blob, scriptName);
                         }
+                        await turnContext.SendActivityAsync(MessageFactory.Text("Thank You, Your Silent Installation is underway."), cancellationToken);
                     }
                 }
                 else
