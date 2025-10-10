@@ -13,7 +13,7 @@ namespace TeamsBot.Services.LLM
     public class IntentDetector
     {
         private static readonly string[] ListKeywords = { "list", "show", "available", "all", "software", "apps", "programs" };
-        private static readonly string[] SoftwareNames = { "python", "nodejs", "node js", "dotnet", ".net", "java", "vs code", "visual studio", "uv", "anaconda", "npm", "yarn", "pnpm" };
+        private static readonly string[] SoftwareNames = { "python", "nodejs","node.js", "node js","dot net", "dotnet", ".net", "java", "vs code", "visual studio", "uv", "anaconda", "npm", "yarn", "pnpm" };
         private static readonly string[] ActionKeywords = { "install", "update", "download", "uninstall", "setup", "add", "get" };
 
         /// <summary>
@@ -27,11 +27,11 @@ namespace TeamsBot.Services.LLM
 
             input = input.ToLower();
             var matchedSoftware = SoftwareNames.Where(s => input.Contains(s)).ToList();
-
+            var softwareName= matchedSoftware.Any()?RefineName(matchedSoftware):"";
             // Rule 1: Specific software detection with action
             if (ActionKeywords.Any(a => input.Contains(a)) && matchedSoftware.Any())
             {
-                return (IntentType.SpecificSoftware, matchedSoftware.FirstOrDefault());
+                return (IntentType.SpecificSoftware, softwareName);
             }
 
             // Rule 2: List all software
@@ -44,10 +44,22 @@ namespace TeamsBot.Services.LLM
             // Rule 3: Ask about specific software without explicit action
             if (matchedSoftware.Any())
             {
-                return (IntentType.SpecificSoftware, matchedSoftware.FirstOrDefault());
+                return (IntentType.SpecificSoftware, softwareName);
             }
 
             return (IntentType.None, "all");
+        }
+        private static string RefineName(List<string> names)
+        {
+            if (names.FirstOrDefault().Contains("net"))
+            {
+                return ".net";
+            }
+            else if(names.FirstOrDefault().Contains("node"))
+            {
+                return "node.js";
+            }
+            return names.FirstOrDefault();
         }
     }
 }

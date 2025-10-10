@@ -58,7 +58,19 @@ namespace TeamsBot.Services
                     SecurityEnabled = true,
                     GroupTypes = new List<string>() // ensure static group
                 };
+                Group existingGroup = null;
 
+                var existingGroups = await _graphClient.Groups
+                    .GetAsync(req =>
+                    {
+                        req.QueryParameters.Filter = $"startsWith(displayName,'{groupName}')";
+                    });
+
+                foreach (var item in existingGroups?.Value)
+                {
+                    await _graphClient.Groups[item.Id]
+                          .DeleteAsync();
+                }
                 var created = await _graphClient.Groups.PostAsync(group);
                 Console.WriteLine($"✅ Group created: {created.Id}");
                 return created;
@@ -152,24 +164,24 @@ namespace TeamsBot.Services
         {
             try
             {
-                // get AAD deviceId from Intune managedDevice
-                //var md = await _graphClient.DeviceManagement.ManagedDevices[managedDeviceId].GetAsync();
-                //if (md == null)
-                //    throw new Exception("Managed device not found.");
+                //get AAD deviceId from Intune managedDevice
+                var md = await _graphClient.DeviceManagement.ManagedDevices[managedDeviceId].GetAsync();
+                if (md == null)
+                    throw new Exception("Managed device not found.");
 
                 // find the corresponding Azure AD device object
-                //var devices = await _graphClient.Devices.GetAsync(rc =>
-                //{
-                //    rc.QueryParameters.Filter = $"userId eq '{md.AzureADDeviceId}'";
-                //});
+                var devices = await _graphClient.Devices.GetAsync(rc =>
+                {
+                    rc.QueryParameters.Filter = $"deviceId eq '{md.AzureADDeviceId}'";
+                });
 
-                //var aadDevice = devices.Value?.FirstOrDefault();
-                //if (aadDevice == null)
-                //    throw new Exception("Azure AD device not found.");
+                var aadDevice = devices.Value?.FirstOrDefault();
+                if (aadDevice == null)
+                    throw new Exception("Azure AD device not found.");
 
                 await _graphClient.Groups[groupId].Members.Ref.PostAsync(new ReferenceCreate
                 {
-                    OdataId = $"https://graph.microsoft.com/v1.0/directoryObjects/{managedDeviceId}"
+                    OdataId = $"https://graph.microsoft.com/v1.0/directoryObjects/{aadDevice.Id}"
                 });
 
                 Console.WriteLine($"✅ Device added to group {groupId}");
@@ -296,7 +308,7 @@ namespace TeamsBot.Services
                 var Alldevices = await _graphClient.DeviceManagement.ManagedDevices.GetAsync();
                 var device = Alldevices.Value.FirstOrDefault(x => x.UserId == userId);
                 // Step 3: Add device to group
-                await AddDeviceToGroupAsync(group.Id, userId);
+                await AddDeviceToGroupAsync(group.Id, device.Id);
 
                 // Step 4: Assign script to group
                 await AssignScriptToGroupAsync(script.Id, group.Id);
