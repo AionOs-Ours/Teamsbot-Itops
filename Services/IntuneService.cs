@@ -10,8 +10,9 @@ using System.Threading.Tasks;
 using Azure.Core;
 using Azure.Identity;
 using Microsoft.Graph.Beta;
-using Microsoft.Graph.Beta.Models;
 using Microsoft.Graph.Beta.DeviceManagement.ManagedDevices.Item.SyncDevice;
+using Microsoft.Graph.Beta.Models;
+using Microsoft.Graph.Beta.Models.CloudLicensing;
 using Microsoft.Graph.Beta.Models.Networkaccess;
 using TeamsBot.Models;
 using TeamsBot.Services.Interfaces;
@@ -24,6 +25,7 @@ namespace TeamsBot.Services
         string clientId = "0b0dd3a1-d1da-4cea-b4a9-6f1ac5584454";
         string appId = "cdb5b3e7-d85a-4033-ac55-b764c519ef0f";           // Intune app ID (Win32LobApp/MSI/etc.)
         string clientSecret = "p648Q~9DGG32R_Q2TLE0gyn_AmtkeXzKQl8ARdij";
+        private GraphServiceClient graphClient;
         public IntuneService()
         {
 
@@ -83,7 +85,7 @@ namespace TeamsBot.Services
                 using var httpClient = new HttpClient();
                 httpClient.DefaultRequestHeaders.Authorization =
                     new AuthenticationHeaderValue("Bearer", token.Token);
-                var graphClient = new GraphServiceClient(credential, new[] { "https://graph.microsoft.com/.default" });
+                graphClient = new GraphServiceClient(credential, new[] { "https://graph.microsoft.com/.default" });
                 //var token = await GetAccessTokenAsync(); // must return a valid token
 
                 //var graphClient = new GraphServiceClient(new DelegateAuthenticationProvider(request =>
@@ -97,7 +99,7 @@ namespace TeamsBot.Services
                 // 1️⃣ Find the device in Intune
                 // -------------------------------------------------------
                 var Alldevices = await graphClient.DeviceManagement.ManagedDevices.GetAsync();
-                var device = Alldevices.Value.FirstOrDefault(x => x.UserId == userId);
+                var device = Alldevices.Value.FirstOrDefault(x => x.UserId == userId && x.DeviceType == DeviceType.WindowsRT);
                 //var devices = await graphClient.DeviceManagement.ManagedDevices
                 //.GetAsync(req =>
                 //{
@@ -160,7 +162,7 @@ namespace TeamsBot.Services
                 {
                     foreach (var member in members.Value)
                     {
-                        if (member.Id == device.UserId.ToString())
+                        if (member.Id == device.Id.ToString())
                         {
                             alreadyMember = true;
                             break;
@@ -168,19 +170,21 @@ namespace TeamsBot.Services
                     }
                 }
 
-                if (!alreadyMember)
-                {
-                    await graphClient.Groups[existingGroup.Id].Members.Ref
-                    .PostAsync(new ReferenceCreate
-                    {
-                        OdataId = $"https://graph.microsoft.com/v1.0/directoryObjects/{device.AzureADDeviceId}"
-                    });
+                //if (!alreadyMember)
+                //{
+                //    await graphClient.Groups[existingGroup.Id].Members.Ref
+                //    .PostAsync(new ReferenceCreate
+                //    {
+                //        OdataId = $"https://graph.microsoft.com/v1.0/directoryObjects/{device.Id}"
+                //    });
 
-                }
+                //}
+                await AddDeviceToGroupAsync(existingGroup.Id, device.Id);
                 return new GraphModel
                 {
                     graphServiceClient = graphClient,
-                    utilityId = existingGroup.Id
+                    utilityId = existingGroup.Id,
+                    deviceId= device.Id
                 };
 
                 //// -------------------------------------------------------
@@ -230,9 +234,53 @@ namespace TeamsBot.Services
                 throw;
             }
         }
-        public async Task<string> DeployApp(string userId)
+        public async Task AddDeviceToGroupAsync(string groupId, string managedDeviceId)
         {
-            string appId = "cdb5b3e7-d85a-4033-ac55-b764c519ef0f";           // Intune app ID (Win32LobApp/MSI/etc.)
+            try
+            {
+                //get AAD deviceId from Intune managedDevice
+                var md = await graphClient.DeviceManagement.ManagedDevices[managedDeviceId].GetAsync();
+                if (md == null)
+                    throw new Exception("Managed device not found.");
+
+                // find the corresponding Azure AD device object
+                var devices = await graphClient.Devices.GetAsync(rc =>
+                {
+                    rc.QueryParameters.Filter = $"deviceId eq '{md.AzureADDeviceId}'";
+                });
+
+                var aadDevice = devices.Value?.FirstOrDefault();
+                if (aadDevice == null)
+                    throw new Exception("Azure AD device not found.");
+                var members = await graphClient.Groups[groupId].Members.GetAsync();
+                bool alreadyMember = false;
+                if (members?.Value != null)
+                {
+                    foreach (var member in members.Value)
+                    {
+                        if (member.Id == aadDevice.Id.ToString())
+                        {
+                            alreadyMember = true;
+                            break;
+                        }
+                    }
+                }
+                if(!alreadyMember)
+                await graphClient.Groups[groupId].Members.Ref.PostAsync(new ReferenceCreate
+                {
+                    OdataId = $"https://graph.microsoft.com/v1.0/directoryObjects/{aadDevice.Id}"
+                });
+
+                Console.WriteLine($"✅ Device added to group {groupId}");
+            }
+            catch (Exception ex)
+            {
+
+                throw;
+            }
+        }
+        public async Task<string> DeployApp(string userId, string appId)
+        {
             var graphModel = await PushSoftware(userId);
             // -------------------------------------------------------
             // 5️⃣ Assign the app to the group (skip if already assigned)
@@ -268,6 +316,8 @@ namespace TeamsBot.Services
                     .PostAsync(assignment);
 
             }
+            await graphClient.DeviceManagement.ManagedDevices[graphModel.deviceId].SyncDevice.PostAsync();
+
             return "Done";
         }
         public async Task<string> DeployScript(string userId, string scriptContent, string scriptName = "PythonSuite.ps1")

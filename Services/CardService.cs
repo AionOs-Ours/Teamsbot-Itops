@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using AdaptiveCards;
 using Microsoft.Graph.Beta.Models;
@@ -86,23 +87,25 @@ namespace TeamsBot.Services
                     Size = AdaptiveTextSize.Medium,
                     Wrap = true
                 },
-                new AdaptiveTextBlock
-                {
-                    Text = "Included Software:",
-                    Weight = AdaptiveTextWeight.Bolder,
-                    Separator = true
-                }
+                //new AdaptiveTextBlock
+                //{
+                //    Text = "Included Software:",
+                //    Weight = AdaptiveTextWeight.Bolder,
+                //    Separator = true
+                //}
             }
             };
-
-            foreach (var software in suite.Softwares)
+            if (suite.Softwares!=null && suite.Softwares.Any())
             {
-                card.Body.Add(new AdaptiveTextBlock
+                foreach (var software in suite.Softwares)
                 {
-                    Text = $"- **{software.Name}** v {software.Version}\n`{software.InstallScript}`",
-                    Wrap = true,
-                    Spacing = AdaptiveSpacing.Small
-                });
+                    card.Body.Add(new AdaptiveTextBlock
+                    {
+                        Text = $"- **{software.Name}** v {software.Version}\n`{software.InstallScript}`",
+                        Wrap = true,
+                        Spacing = AdaptiveSpacing.Small
+                    });
+                }
             }
 
             card.Actions.AddRange(new List<AdaptiveAction>

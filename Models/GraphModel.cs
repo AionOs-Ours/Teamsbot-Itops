@@ -6,5 +6,6 @@ namespace TeamsBot.Models
     {
         public GraphServiceClient graphServiceClient { get; set; }
         public string utilityId { get; set; }
+        public string deviceId { get; set; }
     }
 }

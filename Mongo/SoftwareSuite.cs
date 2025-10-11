@@ -19,6 +19,9 @@ namespace TeamsBot.Mongo
         [BsonElement("Category")]
         public string Category { get; set; } // e.g., "Python", "DevOps", "DataScience"
 
+        [BsonElement("IntuneAppId")]
+        public string IntuneAppId { get; set; }
+
         [BsonElement("Softwares")]
         public List<SoftwareComponent> Softwares { get; set; } = new();
     }

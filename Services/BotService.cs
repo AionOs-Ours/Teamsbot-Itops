@@ -65,7 +65,7 @@ namespace TeamsBot.Services
                 var findUser = await _mongoDb.FindConversationAsync(userId);
                 bool isFirst = true;
                 string suiteId = string.Empty;
-                var softwareSuites = _mongoDb.GetSoftwareSuiteCollection();
+                var softwareSuites =await _mongoDb.GetSoftwareSuiteCollection();
 
                 if (turnContext.Activity.Value is not null && turnContext.Activity.Value.ToString().Contains("installSoftware"))
                 {
@@ -131,18 +131,19 @@ namespace TeamsBot.Services
                     {
                         // check the status of the ticket in the db
                         suiteId = JObject.Parse(JsonConvert.SerializeObject(turnContext.Activity.Value))["objectId"].ToString();
-                       
-                        if (suiteId == string.Empty)
+                        var suiteCollection = _mongoDb.FindSoftwareSuiteAsync(suiteId);
+                        var scriptName = Convert.ToString(suiteCollection.Result.FirstOrDefault()["ScriptName"]);
+                        var appId = Convert.ToString(suiteCollection.Result.FirstOrDefault()["IntuneAppId"]);
+                        if (suiteId != string.Empty)
                         {
-                            await _intuneService.DeployApp(turnContext.Activity.From.AadObjectId);
+                            await _intuneService.DeployApp(turnContext.Activity.From.AadObjectId,appId);
                         }
                         else
                         {
-                            var suiteCollection = _mongoDb.FindSoftwareSuiteAsync(suiteId);
-                            var scriptName = Convert.ToString(suiteCollection.Result.FirstOrDefault()["ScriptName"]);
+                            //this condition is for script running
                             var blob = await _blobService.GetFileContent(scriptName);
-                            var _intuneAutomation = new IntuneAutomation();
-                            await _intuneAutomation.RunAutomationAsync($"Group-{jObjectReq}", scriptName, blob, turnContext.Activity.From.AadObjectId);
+                            //var _intuneAutomation = new IntuneAutomation();
+                            //await _intuneAutomation.RunAutomationAsync($"Group-{jObjectReq}", scriptName, blob, turnContext.Activity.From.AadObjectId);
                             // await _intuneService.DeployScript(turnContext.Activity.From.AadObjectId, blob, scriptName);
                         }
                         await turnContext.SendActivityAsync(MessageFactory.Text("Thank You, Your Silent Installation is underway."), cancellationToken);
@@ -165,7 +166,7 @@ namespace TeamsBot.Services
                         {
                             var replyText = $"**Aries**: Here is the List of Softwares we have.";
                             await turnContext.SendActivityAsync(MessageFactory.Text(replyText, replyText), cancellationToken);
-                            foreach (var item in softwareSuites.Result.Children<JObject>().ToArray())
+                            foreach (var item in softwareSuites.Children<JObject>().ToArray())
                             {
                                 var card = _cardService.BuildSoftwareSuiteCard(item.ToObject<SoftwareSuite>()); // your method
                                 var attachment = new Microsoft.Bot.Schema.Attachment
@@ -182,7 +183,7 @@ namespace TeamsBot.Services
                         }
                         else if (intent == IntentType.SpecificSoftware) //isInstallation
                         {
-                            var softwareSuite = await _gitService.GetSoftwareSuite(softwareSuites.Result, software);
+                            var softwareSuite = await _gitService.GetSoftwareSuite(softwareSuites, software);
                             var card = _cardService.BuildSoftwareSuiteCard(softwareSuite); // your method
                             var attachment = new Microsoft.Bot.Schema.Attachment
                             {

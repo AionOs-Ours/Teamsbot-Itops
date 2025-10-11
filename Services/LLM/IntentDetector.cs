@@ -13,7 +13,7 @@ namespace TeamsBot.Services.LLM
     public class IntentDetector
     {
         private static readonly string[] ListKeywords = { "list", "show", "available", "all", "software", "apps", "programs" };
-        private static readonly string[] SoftwareNames = { "python", "nodejs","node.js", "node js","dot net", "dotnet", ".net", "java", "vs code", "visual studio", "uv", "anaconda", "npm", "yarn", "pnpm" };
+        private static readonly string[] SoftwareNames = { "python", "notepad","notepad++", "vs code","code", "visual studio code", "vscode", "java", "vs code", "visual studio" };
         private static readonly string[] ActionKeywords = { "install", "update", "download", "uninstall", "setup", "add", "get" };
 
         /// <summary>
