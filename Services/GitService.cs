@@ -40,7 +40,7 @@ namespace TeamsBot.Services
             foreach (var item in softwareSuites.Children<JObject>().ToArray())
             {
                 var name = item["SuiteName"]?.ToString().ToLower();
-                if (name != null && name.Contains(softwareName))
+                if (name != null && name.Contains(softwareName.ToLower()))
                 {
                     softwareSuite = item.ToObject<SoftwareSuite>();
                     continue;
