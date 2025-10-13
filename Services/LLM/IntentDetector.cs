@@ -13,7 +13,7 @@ namespace TeamsBot.Services.LLM
     public class IntentDetector
     {
         private static readonly string[] ListKeywords = { "list", "show", "available", "all", "software", "apps", "programs" };
-        private static readonly string[] SoftwareNames = { "python", "notepad","notepad++", "vs code","code", "visual studio code", "vscode", "java", "vs code", "visual studio","zip","winrar","7zip","unzip" };
+        private static readonly string[] SoftwareNames = { "python", "notepad","notepad++", "vs code","code", "visual studio code", "vscode", "java", "vs code", "visual studio","manageengine", "manage engine", "meagent","me agent" };
         private static readonly string[] ActionKeywords = { "install", "update", "download", "uninstall", "setup", "add", "get" };
 
         /// <summary>
@@ -51,9 +51,9 @@ namespace TeamsBot.Services.LLM
         }
         private static string RefineName(List<string> names)
         {
-            if (names.FirstOrDefault().Contains("zip"))
+            if (names.FirstOrDefault().Contains("manage") || names.FirstOrDefault().Contains("agent"))
             {
-                return "7Zip";
+                return "ManageEngine";
             }
             else if(names.FirstOrDefault().Contains("notepad"))
             {
